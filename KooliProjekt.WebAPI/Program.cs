@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System;
 
 namespace KooliProjekt.WebAPI
 {
@@ -18,14 +20,13 @@ namespace KooliProjekt.WebAPI
             // Add services to the container.
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-            // Add services to the container.
+            // ⚠️ CHANGED: Configured to use SQLite instead of SQL Server for cross-platform support
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseSqlServer(connectionString);
+                options.UseSqlite(connectionString, b => b.MigrationsAssembly("KooliProjekt.Application"));
             });
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -49,9 +50,27 @@ namespace KooliProjekt.WebAPI
             }
 
             app.UseAuthorization();
-
-
             app.MapControllers();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                try
+                {
+                    var context = services.GetRequiredService<ApplicationDbContext>();
+
+                    // Runs database updates automatically when the application starts
+                    context.Database.Migrate();
+
+                    SeedData.Initialize(context);
+                }
+                catch (Exception ex)
+                {
+                    var logger = services.GetRequiredService<ILogger<Program>>();
+                    logger.LogError(ex, "Andmebaasi migreerimisel või algandmete sisestamisel tekkis viga.");
+                    throw;
+                }
+            }
 
             app.Run();
         }

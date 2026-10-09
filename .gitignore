@@ -266,6 +266,7 @@ ServiceFabricBackup/
 *.mdf
 *.ldf
 *.ndf
+/KooliProjekt.WebAPI/kooliprojekt.db*
 
 # Business Intelligence projects
 *.rdl.data
